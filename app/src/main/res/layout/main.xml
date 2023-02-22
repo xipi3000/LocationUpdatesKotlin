@@ -16,7 +16,7 @@
 -->
 
 
-<android.support.design.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -24,22 +24,22 @@
     android:fitsSystemWindows="true"
     tools:context=".MainActivity">
 
-    <android.support.design.widget.AppBarLayout
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:theme="@style/AppTheme.AppBarOverlay">
 
-        <android.support.v7.widget.Toolbar
+        <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="?attr/colorPrimary"
             app:popupTheme="@style/AppTheme.PopupOverlay" />
 
-    </android.support.design.widget.AppBarLayout>
+    </com.google.android.material.appbar.AppBarLayout>
 
 
-    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
@@ -60,30 +60,29 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="10dp"
-                android:layout_marginRight="10dp"
                 android:layout_weight="1"
                 android:gravity="center"
                 android:onClick="startUpdatesButtonHandler"
-                android:text="@string/start_updates" />
+                android:text="@string/start_updates"
+                style="?android:attr/buttonBarButtonStyle" />
 
             <Button
                 android:id="@+id/stop_updates_button"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginLeft="@dimen/small_margin"
                 android:layout_marginStart="@dimen/small_margin"
                 android:layout_weight="1"
                 android:enabled="false"
                 android:gravity="center"
                 android:onClick="stopUpdatesButtonHandler"
-                android:text="@string/stop_updates" />
+                android:text="@string/stop_updates"
+                style="?android:attr/buttonBarButtonStyle" />
         </LinearLayout>
 
         <TextView
             android:id="@+id/latitude_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="@dimen/small_margin"
             android:layout_marginStart="@dimen/small_margin"
             android:textSize="@dimen/default_text_size" />
 
@@ -91,7 +90,6 @@
             android:id="@+id/longitude_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="@dimen/small_margin"
             android:layout_marginStart="@dimen/small_margin"
             android:textSize="@dimen/default_text_size" />
 
@@ -99,7 +97,6 @@
             android:id="@+id/last_update_time_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="@dimen/small_margin"
             android:layout_marginStart="@dimen/small_margin"
             android:textSize="@dimen/default_text_size" />
 
@@ -110,4 +107,4 @@
             android:text="@string/location_settings_inadequate_warning"
             android:visibility="invisible" />
     </LinearLayout>
-</android.support.design.widget.CoordinatorLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
