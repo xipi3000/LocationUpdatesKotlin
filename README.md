@@ -4,6 +4,7 @@ Location Updates
 Demonstrates how to use the Fused Location Provider API to get updates about a
 device's location. The Fused Location Provider is part of the Google Play
 services Location APIs.
+This app is coded in Kotlin.
 
 
 Introduction
@@ -27,9 +28,8 @@ To run this sample, **location must be enabled**.
 Prerequisites
 --------------
 
-- Android API Level >v9
-- Android Build Tools >v21
-- Google Support Repository
+- Android API Level >= API Level 24
+- Android Build Tools: API Level 33
 
 Getting Started
 ---------------
