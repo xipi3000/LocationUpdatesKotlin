@@ -32,7 +32,6 @@ import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.ResolvableApiException
@@ -88,7 +87,6 @@ class MainActivity : AppCompatActivity() {
     /**
      * Represents a geographical location.
      */
-    private var mCurrentLocation: Location? = null
 
     // UI Widgets.
     private lateinit var mStartUpdatesButton: Button
@@ -115,12 +113,44 @@ class MainActivity : AppCompatActivity() {
 
     private var settings = false
 
+
     /**
      * Time when the location was updated represented as a String.
      */
     private var mLastUpdateTime: String? = null
     //@RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    public override fun onCreate(savedInstanceState: Bundle?) {
+
+
+    private var mCurrentLocation: Location? = null
+        get() {
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED
+            ) return null
+
+            mFusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                // Got last known location. In some rare situations this can be null.
+                mLatitudeTextView.text = String.format(
+                    Locale.ENGLISH, "%s: %f",
+                    mLatitudeLabel,
+                    location?.latitude
+                )
+                mLongitudeTextView.text = String.format(
+                    Locale.ENGLISH, "%s: %f",
+                    mLongitudeLabel,
+                    location?.longitude
+                )
+                mCurrentLocation?.latitude = location?.latitude!!
+                mCurrentLocation?.longitude = location.longitude
+            }
+                .addOnFailureListener {
+                    showSnackbar("Failed on getting current location")
+                }
+            return field
+        }
+
+  public override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = MainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -140,6 +170,10 @@ class MainActivity : AppCompatActivity() {
         mLastUpdateTimeLabel = resources.getString(R.string.last_update_time_label)
         mRequestingLocationUpdates = false
         mLastUpdateTime = ""
+
+        //mCurrentLocation = Location()
+       // mCurrentLocation.latitude = 41.6082
+        //mCurrentLocation.longitude = 0.6231
 
         locationPermissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
@@ -164,8 +198,9 @@ class MainActivity : AppCompatActivity() {
                     intent.action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
                     val uri = Uri.fromParts(
                         "package",
-                        BuildConfig.APPLICATION_ID, null
-                    )
+                        //BuildConfig.APPLICATION_ID , null
+                        packageName, null
+                    )  // Amb la darrera API level deprecated. Ara és packageName
                     intent.data = uri
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                     startActivity(intent)
@@ -199,9 +234,9 @@ class MainActivity : AppCompatActivity() {
                     KEY_REQUESTING_LOCATION_UPDATES
                 )
             }
-            if (savedInstanceState.keySet().contains(KEY_LOCATION)) {
-                mCurrentLocation = savedInstanceState.getParcelable(KEY_LOCATION)
-            }
+            //if (savedInstanceState.keySet().contains(KEY_LOCATION)) {
+                //mCurrentLocation = savedInstanceState.getParcelable(KEY_LOCATION)!!
+            //}
             if (savedInstanceState.keySet().contains(KEY_LAST_UPDATED_TIME_STRING)) {
                 mLastUpdateTime = savedInstanceState.getString(KEY_LAST_UPDATED_TIME_STRING)
             }
@@ -250,7 +285,7 @@ class MainActivity : AppCompatActivity() {
         mLocationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 super.onLocationResult(locationResult)
-                mCurrentLocation = locationResult.lastLocation
+                mCurrentLocation = locationResult.lastLocation!!
                 mLastUpdateTime = DateFormat.getTimeInstance().format(Date())
                 updateLocationUI()
             }
@@ -367,20 +402,22 @@ class MainActivity : AppCompatActivity() {
      * Sets the value of the UI fields for the location latitude, longitude and last update time.
      */
     private fun updateLocationUI() {
-        if (mCurrentLocation != null) {
-            mLatitudeTextView.text = String.format(
+        mLatitudeTextView.text = mCurrentLocation?.let {
+            String.format(
                 Locale.ENGLISH, "%s: %f", mLatitudeLabel,
-                mCurrentLocation!!.latitude
-            )
-            mLongitudeTextView.text = String.format(
-                Locale.ENGLISH, "%s: %f", mLongitudeLabel,
-                mCurrentLocation!!.longitude
-            )
-            mLastUpdateTimeTextView.text = String.format(
-                Locale.ENGLISH, "%s: %s",
-                mLastUpdateTimeLabel, mLastUpdateTime
+                it.latitude
             )
         }
+        mLongitudeTextView.text = mCurrentLocation?.let {
+            String.format(
+                Locale.ENGLISH, "%s: %f", mLongitudeLabel,
+                it.longitude
+            )
+        }
+        mLastUpdateTimeTextView.text = String.format(
+            Locale.ENGLISH, "%s: %s",
+            mLastUpdateTimeLabel, mLastUpdateTime
+        )
     }
 
     /**
@@ -424,7 +461,7 @@ class MainActivity : AppCompatActivity() {
      */
     public override fun onSaveInstanceState(savedInstanceState: Bundle) {
         savedInstanceState.putBoolean(KEY_REQUESTING_LOCATION_UPDATES, mRequestingLocationUpdates)
-        savedInstanceState.putParcelable(KEY_LOCATION, mCurrentLocation)
+        //savedInstanceState.putParcelable(KEY_LOCATION, mCurrentLocation)
         savedInstanceState.putString(KEY_LAST_UPDATED_TIME_STRING, mLastUpdateTime)
         super.onSaveInstanceState(savedInstanceState)
     }
@@ -470,7 +507,7 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.ACCESS_FINE_LOCATION
         ) || ActivityCompat.shouldShowRequestPermissionRationale(
             this,
-            Manifest.permission.ACCESS_FINE_LOCATION
+            Manifest.permission.ACCESS_COARSE_LOCATION
         )
 
         // Provide an additional rationale to the user. This would happen if the user denied the
@@ -498,6 +535,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    fun showSnackbar(text: String) {
+
+        val container = findViewById<View>(R.id.main_activity_container)
+        if (container != null) {
+            Snackbar.make(container, text, Snackbar.LENGTH_LONG).show()
+        }
+    }
 
     companion object {
         private val TAG = MainActivity::class.java.simpleName
@@ -510,7 +554,7 @@ class MainActivity : AppCompatActivity() {
         /**
          * The desired interval for location updates. Inexact. Updates may be more or less frequent.
          */
-        private const val UPDATE_INTERVAL_IN_MILLISECONDS: Long = 10000
+        private const val UPDATE_INTERVAL_IN_MILLISECONDS: Long = 100  // 10000
 
         /**
          * The fastest rate for active location updates. Exact. Updates will never be more frequent
