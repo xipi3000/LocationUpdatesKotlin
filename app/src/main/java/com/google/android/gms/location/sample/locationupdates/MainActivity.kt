@@ -285,7 +285,7 @@ class MainActivity : AppCompatActivity() {
         mLocationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 super.onLocationResult(locationResult)
-                mCurrentLocation = locationResult.lastLocation!!
+                mCurrentLocation = locationResult.lastLocation
                 mLastUpdateTime = DateFormat.getTimeInstance().format(Date())
                 updateLocationUI()
             }
@@ -453,7 +453,8 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
 
         // Remove location updates to save battery.
-        stopLocationUpdates()
+        if (mRequestingLocationUpdates)
+            stopLocationUpdates()
     }
 
     /**
