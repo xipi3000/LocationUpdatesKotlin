@@ -14,7 +14,7 @@
   limitations under the License.
  */
 package com.google.android.gms.location.sample.locationupdates
-
+import androidx.compose.material3.Surface
 import android.Manifest
 import android.content.Intent
 import android.content.IntentSender.SendIntentException
@@ -29,14 +29,19 @@ import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.ui.Modifier
 import androidx.core.app.ActivityCompat
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
 import com.google.android.gms.location.sample.locationupdates.databinding.MainBinding
+import com.google.android.gms.location.sample.locationupdates.ui.theme.LocationViewModel
+import com.google.android.gms.location.sample.locationupdates.ui.theme.MainScreen
 import com.google.android.material.snackbar.Snackbar
 import java.text.DateFormat
 import java.util.*
@@ -57,7 +62,13 @@ import java.util.*
  * This sample allows the user to request location updates using the ACCESS_FINE_LOCATION setting
  * (as specified in AndroidManifest.xml).
  */
-class MainActivity : AppCompatActivity() {
+
+
+class MainActivity : ComponentActivity() {
+
+
+    val gameUiState by LocationViewModel.uiState.collectAsState()
+
     /**
      * Provides access to the Fused Location Provider API.
      */
@@ -145,13 +156,38 @@ class MainActivity : AppCompatActivity() {
                 mCurrentLocation?.longitude = location.longitude
             }
                 .addOnFailureListener {
-                    showSnackbar("Failed on getting current location")
+                    showSnackbar(
+                        "Failed on getting current location",
+                        R.string.settings
+                    ) { // Build intent that displays the App settings screen.
+                        val intent = Intent()
+                        intent.action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                        val uri = Uri.fromParts(
+                            "package",
+                            //BuildConfig.APPLICATION_ID , null
+                            packageName, null
+                        )  // Amb la darrera API level deprecated. Ara és packageName
+                        intent.data = uri
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        startActivity(intent)
+                    }
                 }
             return field
         }
 
-  public override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        setContent {
+
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                MainScreen()
+            }
+
+        }}
+
         binding = MainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         val toolbar = binding.toolbar
@@ -335,6 +371,7 @@ class MainActivity : AppCompatActivity() {
         mSettingsClient.checkLocationSettings(mLocationSettingsRequest)
             .addOnSuccessListener(this) {
                 Log.i(TAG, "All location settings are satisfied.")
+                //TODO:Això es podria treure crec i no entenc el ||
                 if ((checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
                     PackageManager.PERMISSION_GRANTED
                 ) || (checkPermission(Manifest.permission.ACCESS_COARSE_LOCATION, 0, 0) ==
@@ -441,6 +478,9 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         // Within {@code onPause()}, we remove location updates. Here, we resume receiving
         // location updates if the user has requested them.
+
+        //TODO: sol fa falta al principi
+
         if (mRequestingLocationUpdates && checkPermissions()) {
             startLocationUpdates()
         } else if (!checkPermissions() && !settings) {
@@ -455,6 +495,7 @@ class MainActivity : AppCompatActivity() {
         // Remove location updates to save battery.
         if (mRequestingLocationUpdates)
             stopLocationUpdates()
+        //TODO: faltaria aixo?? locationPermissionLauncher.unregister()
     }
 
     /**
@@ -536,7 +577,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun showSnackbar(text: String) {
+    fun showSnackbar(text: Int, settings: Int, function: () -> Unit) {
 
         val container = findViewById<View>(R.id.main_activity_container)
         if (container != null) {
