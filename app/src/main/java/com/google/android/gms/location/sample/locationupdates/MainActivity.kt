@@ -47,6 +47,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.rememberScaffoldState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Scaffold
@@ -79,6 +80,8 @@ import com.google.android.gms.location.sample.locationupdates.ui.LocationViewMod
 import com.google.android.gms.location.sample.locationupdates.ui.theme.CameraPermissionTextProvider
 import com.google.android.gms.location.sample.locationupdates.ui.theme.PermissionDialog
 import com.google.android.gms.location.sample.locationupdates.ui.theme.RecordAudioPermissionTextProvider
+import com.google.android.gms.tasks.OnCompleteListener
+import com.google.android.gms.tasks.Task
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -138,7 +141,7 @@ class MainActivity : ComponentActivity() {
      * Represents a geographical location.
      */
     companion object {
-        private val TAG = "goofy"
+        private val TAG = MainActivity::class.java.simpleName
 
         /**
          * Constant used in the location settings dialog.
@@ -163,37 +166,13 @@ class MainActivity : ComponentActivity() {
         private const val KEY_LAST_UPDATED_TIME_STRING = "last-updated-time-string"
     }
 
-    // UI Widgets.
-    private lateinit var mStartUpdatesButton: Button
-    private lateinit var mStopUpdatesButton: Button
-    private lateinit var mLastUpdateTimeTextView: TextView
-    private lateinit var mLatitudeTextView: TextView
-    private lateinit var mLongitudeTextView: TextView
-
-    // Labels.
-    private lateinit var mLatitudeLabel: String
-    private lateinit var mLongitudeLabel: String
-    private lateinit var mLastUpdateTimeLabel: String
-
-    //lateinit var startForResult: ActivityResultLauncher<String[]>
 
     /**
      * Tracks the status of the location updates request. Value changes when the user presses the
      * Start Updates and Stop Updates buttons.
      */
-    private lateinit var locationPermissionLauncher: ActivityResultLauncher<Array<String>>
-
-
-    private lateinit var binding: MainBinding
 
     private var settings = false
-
-
-    /**
-     * Time when the location was updated represented as a String.
-     */
-    private var mLastUpdateTime: String? = null
-    //@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 
 
     private val permissionsToRequest = arrayOf(
@@ -220,23 +199,19 @@ class MainActivity : ComponentActivity() {
 
         ) {
         scope.launch {
-            val result = snackbarHostState
-                .showSnackbar(
-                    message = message,
-                    actionLabel = actionLabel,
-                    // Defaults to SnackbarDuration.Short
-                    duration = SnackbarDuration.Indefinite
-                )
+            val result = snackbarHostState.showSnackbar(
+                message = message, actionLabel = actionLabel,
+                // Defaults to SnackbarDuration.Short
+                duration = SnackbarDuration.Indefinite
+            )
             when (result) {
-                SnackbarResult.ActionPerformed -> {
-                    /* Handle snackbar action performed */
+                SnackbarResult.ActionPerformed -> {/* Handle snackbar action performed */
 
                     action()
                 }
 
-                SnackbarResult.Dismissed -> {
-                    /* Handle snackbar dismissed */
-                    Log.i("asd", "b")
+                SnackbarResult.Dismissed -> {/* Handle snackbar dismissed */
+
                 }
             }
         }
@@ -247,6 +222,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
+            val context = LocalContext.current as ComponentActivity
             val rationaleMessage = stringResource(id = R.string.permission_rationale)
             val rationaleLabel = stringResource(id = android.R.string.ok)
             val snackbarHostState = remember { SnackbarHostState() }
@@ -265,86 +241,91 @@ class MainActivity : ComponentActivity() {
 
                 val settingLabel = stringResource(id = R.string.settings)
                 val settingMessage = stringResource(R.string.permission_denied_explanation)
-                val multiplePermissionsResultLauncher = rememberLauncherForActivityResult(
-                    contract = ActivityResultContracts.RequestMultiplePermissions(),
-                    onResult = { perms ->
-                        when {
-                            perms.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, true) -> {
-                                // Precise location access granted.
-                                Log.i(
-                                    TAG,
-                                    "User agreed to make precise required location settings changes, updates requested, starting location updates."
-                                )
-                                startLocationUpdates()
-                            }
+                val multiplePermissionsResultLauncher =
+                    rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestMultiplePermissions(),
+                        onResult = { perms ->
+                            when {
+                                perms.getOrDefault(
+                                    Manifest.permission.ACCESS_FINE_LOCATION, true
+                                ) -> {
+                                    // Precise location access granted.
+                                    Log.i(
+                                        TAG,
+                                        "User agreed to make precise required location settings changes, updates requested, starting location updates."
+                                    )
+                                    startLocationUpdates()
+                                }
 
-                            perms.getOrDefault(
-                                Manifest.permission.ACCESS_COARSE_LOCATION,
-                                true
-                            ) -> {
-                                // Only approximate location access granted.
-                                Log.i(
-                                    TAG,
-                                    "User agreed to make coarse required location settings changes, updates requested, starting location updates."
-                                )
-                                startLocationUpdates()
-                            }
+                                perms.getOrDefault(
+                                    Manifest.permission.ACCESS_COARSE_LOCATION, true
+                                ) -> {
+                                    // Only approximate location access granted.
+                                    Log.i(
+                                        TAG,
+                                        "User agreed to make coarse required location settings changes, updates requested, starting location updates."
+                                    )
+                                    startLocationUpdates()
+                                }
 
-                            else -> {
-                                locationViewModel.stopUpdating()
-                                showSnackBar(
-                                    scope = scope,
-                                    snackbarHostState = snackbarHostState,
-                                    actionLabel = settingLabel,
-                                    message = settingMessage,
-                                    action = { openAppSettings(currentActivity) }
-                                )
+                                else -> {
+                                    locationViewModel.stopUpdating()
+                                    showSnackBar(scope = scope,
+                                        snackbarHostState = snackbarHostState,
+                                        actionLabel = settingLabel,
+                                        message = settingMessage,
+                                        action = { openAppSettings(currentActivity) })
+                                }
                             }
-                        }
-                    }
-                )
+                        })
 
                 val updating by locationViewModel.isUpdating.collectAsState()
                 val lifecycleOwner = LocalLifecycleOwner.current
+                val scaffoldState = rememberScaffoldState()
 
-                DisposableEffect(key1 = lifecycleOwner,
-                    effect = {
-                        val observer = LifecycleEventObserver { _, event ->
-                            if (event == Lifecycle.Event.ON_RESUME) {
-                                if (updating && permissionsGranted()) {
-                                    startLocationUpdates()
-                                } else if (updating && !permissionsGranted() && !settings) {
-                                    if(shouldShowRationaleLocation())
-                                        showSnackBar(
-                                            snackbarHostState = snackbarHostState,
-                                            scope = scope,
-                                            message = rationaleMessage,
-                                            actionLabel = rationaleLabel,
-                                            action = {
-                                                multiplePermissionsResultLauncher.launch(
-                                                    permissionsToRequest
-                                                )
-                                            }
+                DisposableEffect(key1 = lifecycleOwner, effect = {
+                    val observer = LifecycleEventObserver { _, event ->
+                        if (event == Lifecycle.Event.ON_RESUME) {
+                            Log.i(TAG, "App resumed")
+                            Log.i(TAG, permissionsGranted().toString())
+                            Log.i(TAG, updating.toString())
+                            if (updating && permissionsGranted()) {
+                                startLocationUpdates()
+                            } else if (permissionsGranted()) {
+                                snackbarHostState.currentSnackbarData?.dismiss()
+                            } else if (updating && !permissionsGranted() && !settings) {
+                                if (shouldShowRationaleLocation()) showSnackBar(snackbarHostState = snackbarHostState,
+                                    scope = scope,
+                                    message = rationaleMessage,
+                                    actionLabel = rationaleLabel,
+                                    action = {
+                                        multiplePermissionsResultLauncher.launch(
+                                            permissionsToRequest
                                         )
-                                    multiplePermissionsResultLauncher.launch(
-                                        permissionsToRequest
-                                    )
-
-
-                                }
+                                    })
+                                multiplePermissionsResultLauncher.launch(
+                                    permissionsToRequest
+                                )
                             }
-                            if (event == Lifecycle.Event.ON_PAUSE) {
+                        } else if (event == Lifecycle.Event.ON_PAUSE) {
+                            Log.i(TAG, "App paused")
 
-                                //stopLocationUpdates(updating)
-                            }
-                        }
-
-                        lifecycleOwner.lifecycle.addObserver(observer)
-                        onDispose {
-                            lifecycleOwner.lifecycle.removeObserver(observer)
+                            stopLocationUpdates(updating)
+                        } else if (event == Lifecycle.Event.ON_CREATE) {
+                            Log.i(TAG, "App created")
+                            mFusedLocationClient =
+                                LocationServices.getFusedLocationProviderClient(currentActivity)
+                            mSettingsClient = LocationServices.getSettingsClient(currentActivity)
+                            createLocationCallback(locationViewModel)
+                            createLocationRequest()
+                            buildLocationSettingsRequest()
                         }
                     }
-                )
+
+                    lifecycleOwner.lifecycle.addObserver(observer)
+                    onDispose {
+                        lifecycleOwner.lifecycle.removeObserver(observer)
+                    }
+                })
 
 
                 Column(
@@ -356,50 +337,42 @@ class MainActivity : ComponentActivity() {
                 ) {
 
 
-
-
                     Row {
 
-                        Button(
-                            enabled = !updating,
-                            onClick = {
-                                if (!permissionsGranted()) {
-                                    if (shouldShowRationaleLocation()) {
-                                        showSnackBar(
-                                            snackbarHostState = snackbarHostState,
-                                            scope = scope,
-                                            message = rationaleMessage,
-                                            actionLabel = rationaleLabel,
-                                            action = {
-                                                multiplePermissionsResultLauncher.launch(
-                                                    permissionsToRequest
-                                                )
-                                            }
-                                        )
-                                    } else {
-                                        multiplePermissionsResultLauncher.launch(
-                                            permissionsToRequest
-                                        )
-                                    }
+                        Button(enabled = !updating, onClick = {
+                            if (!permissionsGranted()) {
+                                if (shouldShowRationaleLocation()) {
+                                    showSnackBar(snackbarHostState = snackbarHostState,
+                                        scope = scope,
+                                        message = rationaleMessage,
+                                        actionLabel = rationaleLabel,
+                                        action = {
+                                            multiplePermissionsResultLauncher.launch(
+                                                permissionsToRequest
+                                            )
+                                        })
+                                } else {
+                                    multiplePermissionsResultLauncher.launch(
+                                        permissionsToRequest
+                                    )
+                                }
 
 
-                                }
-                                else {
-                                    startLocationUpdates()
-                                }
+                            } else {
+
+                                startLocationUpdates()
                             }
+                        }
 
                         ) {
                             Text(text = "Start")
                         }
 
-                        Button(
-                            enabled = updating,
-                            onClick = {
+                        Button(enabled = updating, onClick = {
 
-                                stopLocationUpdates(updating)
-
-                            }) {
+                            stopLocationUpdates(updating)
+                            locationViewModel.stopUpdating()
+                        }) {
                             Text(text = "Stop")
 
                         }
@@ -410,46 +383,10 @@ class MainActivity : ComponentActivity() {
                     Text(
                         text = "Location: ${location.latitude} , ${location.latitude} ",
 
+                        )
+                    Text(
+                        text = "Time: $lastTimeUpdate",
                     )
-                    Text(text = "Time: $lastTimeUpdate",
-                    )
-                }
-
-
-
-                mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-                mSettingsClient = LocationServices.getSettingsClient(this)
-
-                // Kick off the process of building the LocationCallback, LocationRequest, and
-                // LocationSettingsRequest objects.
-                createLocationCallback(locationViewModel)
-                createLocationRequest()
-                buildLocationSettingsRequest()
-
-
-            }
-
-        }
-        /*
-        message = if (shouldShowRationaleLocation(currentActivity)) stringResource(R.string.permission_rationale) else stringResource(R.string.permission_denied_explanation),
-
-                        actionLabel = if (shouldShowRationaleLocation(currentActivity)) android.R.string.ok else   R.string.settings ,
-
-         */
-
-
-
-        @Composable
-        fun CreateLocationCallback(
-            locationViewModel: LocationViewModel
-
-        ) {
-            mLocationCallback = object : LocationCallback() {
-                override fun onLocationResult(locationResult: LocationResult) {
-                    super.onLocationResult(locationResult)
-                    locationViewModel.updateLocation(locationResult.lastLocation)
-                    locationViewModel.updateUpdateTime(DateFormat.getTimeInstance().format(Date()))
-//                updateLocationUI()
                 }
             }
         }
@@ -458,22 +395,18 @@ class MainActivity : ComponentActivity() {
 
     private fun shouldShowRationaleLocation(): Boolean {
         return !ActivityCompat.shouldShowRequestPermissionRationale(
-            this,
-            Manifest.permission.ACCESS_FINE_LOCATION
+            this, Manifest.permission.ACCESS_FINE_LOCATION
         ) || !ActivityCompat.shouldShowRequestPermissionRationale(
-            this,
-            Manifest.permission.ACCESS_COARSE_LOCATION
+            this, Manifest.permission.ACCESS_COARSE_LOCATION
         )
 
     }
 
     private fun createLocationRequest() {
         mLocationRequest = LocationRequest.Builder(FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS)
-            .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
-            .setWaitForAccurateLocation(false)
+            .setPriority(Priority.PRIORITY_HIGH_ACCURACY).setWaitForAccurateLocation(false)
             .setMinUpdateIntervalMillis(FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS)
-            .setMaxUpdateDelayMillis(UPDATE_INTERVAL_IN_MILLISECONDS)
-            .build()
+            .setMaxUpdateDelayMillis(UPDATE_INTERVAL_IN_MILLISECONDS).build()
 
 
         // Sets the desired interval for active location updates. This interval is
@@ -488,12 +421,10 @@ class MainActivity : ComponentActivity() {
 
     private fun permissionsGranted(): Boolean {
         val permissionFineState = ActivityCompat.checkSelfPermission(
-            this,
-            Manifest.permission.ACCESS_FINE_LOCATION
+            this, Manifest.permission.ACCESS_FINE_LOCATION
         )
         val permissionCoarseState = ActivityCompat.checkSelfPermission(
-            this,
-            Manifest.permission.ACCESS_COARSE_LOCATION
+            this, Manifest.permission.ACCESS_COARSE_LOCATION
         )
 
         return ((permissionFineState == PackageManager.PERMISSION_GRANTED) || (permissionCoarseState == PackageManager.PERMISSION_GRANTED))
@@ -506,7 +437,7 @@ class MainActivity : ComponentActivity() {
         mLocationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 super.onLocationResult(locationResult)
-                Log.e("goofy", locationResult.lastLocation.toString())
+                Log.w("goofy", locationResult.lastLocation.toString())
                 locationViewModel.updateLocation(locationResult.lastLocation)
 
                 locationViewModel.updateUpdateTime(DateFormat.getTimeInstance().format(Date()))
@@ -534,171 +465,60 @@ class MainActivity : ComponentActivity() {
         // It is a good practice to remove location requests when the activity is in a paused or
         // stopped state. Doing so helps battery performance and is especially
         // recommended in applications that request frequent location updates.
-        mFusedLocationClient.removeLocationUpdates(mLocationCallback)
-        locationViewModel.stopUpdating()
+        val voidTask: Task<Void> = mFusedLocationClient.removeLocationUpdates(mLocationCallback)
+
+        if (voidTask.isSuccessful) {
+            Log.d(TAG, "StopLocation updates successful! ");
+            createLocationCallback(locationViewModel)
+        } else {
+            Log.e(TAG, "StopLocation updates unsuccessful!")
+            //stopLocationUpdates(updating)
+        }
+        Log.i(TAG, "Location updates stoped")
+        //locationViewModel.stopUpdating()
     }
 
     private fun startLocationUpdates() {
-
         // Begin by checking if the device has the necessary location settings.
-        mSettingsClient.checkLocationSettings(mLocationSettingsRequest)
-            .addOnSuccessListener(this) {
-                Log.i(TAG, "All location settings are satisfied.")
-                //TODO:Això es podria treure crec i no entenc el ||
-                if ((checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
-                            PackageManager.PERMISSION_GRANTED
-                            ) || (checkPermission(
-                        Manifest.permission.ACCESS_COARSE_LOCATION,
-                        0,
-                        0
-                    ) ==
-                            PackageManager.PERMISSION_GRANTED
-                            )
-                ) {
-                    locationViewModel.startUpdating()
-                    mFusedLocationClient.requestLocationUpdates(
-                        mLocationRequest,
-                        mLocationCallback, Looper.myLooper()!!
+        mSettingsClient.checkLocationSettings(mLocationSettingsRequest).addOnSuccessListener(this) {
+            Log.i(TAG, "All location settings are satisfied.")
+            if ((checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) || (checkPermission(
+                    Manifest.permission.ACCESS_COARSE_LOCATION, 0, 0
+                ) == PackageManager.PERMISSION_GRANTED)
+            ) {
+                locationViewModel.startUpdating()
+
+                mFusedLocationClient.requestLocationUpdates(
+                    mLocationRequest, mLocationCallback, Looper.myLooper()!!
+                )
+            }
+        }.addOnFailureListener(this) { e ->
+            val statusCode = (e as ApiException).statusCode
+            when (statusCode) {
+                LocationSettingsStatusCodes.RESOLUTION_REQUIRED -> {
+                    Log.i(
+                        TAG,
+                        "Location settings are not satisfied. Attempting to upgrade " + "location settings "
                     )
-                }
-            }
-            .addOnFailureListener(this) { e ->
-                val statusCode = (e as ApiException).statusCode
-                when (statusCode) {
-                    LocationSettingsStatusCodes.RESOLUTION_REQUIRED -> {
-                        Log.i(
-                            TAG, "Location settings are not satisfied. Attempting to upgrade " +
-                                    "location settings "
-                        )
-                        try {
-                            // Show the dialog by calling startResolutionForResult(), and check the
-                            // result in onActivityResult().
-                            val rae = e as ResolvableApiException
-                            rae.startResolutionForResult(this@MainActivity, REQUEST_CHECK_SETTINGS)
-                        } catch (sie: SendIntentException) {
-                            Log.i(TAG, "PendingIntent unable to execute request.")
-                        }
+                    try {
+                        // Show the dialog by calling startResolutionForResult(), and check the
+                        // result in onActivityResult().
+                        val rae = e as ResolvableApiException
+                        rae.startResolutionForResult(this@MainActivity, REQUEST_CHECK_SETTINGS)
+                    } catch (sie: SendIntentException) {
+                        Log.i(TAG, "PendingIntent unable to execute request.")
                     }
+                }
 
-                    LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE -> {
-                        val errorMessage = "Location settings are inadequate, and cannot be " +
-                                "fixed here. Fix in Settings."
-                        Log.e(TAG, errorMessage)
-                        Toast.makeText(this@MainActivity, errorMessage, Toast.LENGTH_LONG).show()
-                        locationViewModel.stopUpdating()
-                    }
+                LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE -> {
+                    val errorMessage =
+                        "Location settings are inadequate, and cannot be " + "fixed here. Fix in Settings."
+                    Log.e(TAG, errorMessage)
+                    Toast.makeText(this@MainActivity, errorMessage, Toast.LENGTH_LONG).show()
+
                 }
             }
+        }
     }
-
-
-    /*
-
-        public override fun onResume() {
-            super.onResume()
-            // Within {@code onPause()}, we remove location updates. Here, we resume receiving
-            // location updates if the user has requested them.
-
-            //TODO: sol fa falta al principi
-
-            if (locationViewModel.uiState.value.isUpdating && checkPermissions()) {
-                startLocationUpdates()
-            } else if (!checkPermissions() && !settings) {
-                requestPermissions()
-            }
-
-
-        }
-
-        override fun onPause() {
-            super.onPause()
-
-            // Remove location updates to save battery.
-            if (locationViewModel.uiState.value.isUpdating)
-                stopLocationUpdates()
-            //TODO: faltaria aixo?? locationPermissionLauncher.unregister()
-        }
-
-        /**
-         * Stores activity data in the Bundle.
-         */
-
-        /**
-         * Shows a [Snackbar].
-         *
-         * @param mainTextStringId The id for the string resource for the Snackbar text.
-         * @param actionStringId   The text of the action item.
-         * @param listener         The listener associated with the Snackbar action.
-         */
-        private fun showSnackbar(
-            mainTextStringId: Int, actionStringId: Int,
-            listener: View.OnClickListener
-        ) {
-            Snackbar.make(
-                findViewById(android.R.id.content),
-                getString(mainTextStringId),
-                Snackbar.LENGTH_INDEFINITE
-            )
-                .setAction(getString(actionStringId), listener).show()
-        }
-
-        /**
-         * Return the current state of the permissions needed.
-         */
-        private fun checkPermissions(): Boolean {
-            val permissionFineState = ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            )
-            val permissionCoarseState = ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-
-            return ((permissionFineState == PackageManager.PERMISSION_GRANTED) || (permissionCoarseState == PackageManager.PERMISSION_GRANTED))
-        }
-
-        private fun requestPermissions() {
-            val shouldProvideRationale = ActivityCompat.shouldShowRequestPermissionRationale(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) || ActivityCompat.shouldShowRequestPermissionRationale(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-
-            // Provide an additional rationale to the user. This would happen if the user denied the
-            // request previously, but didn't check the "Don't ask again" checkbox.
-            if (shouldProvideRationale) {
-                Log.i(TAG, "Displaying permission rationale to provide additional context.")
-                showSnackbar(
-                    R.string.permission_rationale,
-                    android.R.string.ok
-                ) { // Request permission
-                    locationPermissionLauncher.launch(arrayOf(
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.ACCESS_COARSE_LOCATION))
-                }
-                settings = true
-            } else {
-                Log.i(TAG, "Requesting permission")
-                // Request permission. It's possible this can be auto answered if device policy
-                // sets the permission in a given state or the user denied the permission
-                // previously and checked "Never ask again".
-
-                locationPermissionLauncher.launch(arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION))
-            }
-        }
-
-        fun showSnackbar(text: Int, settings: Int, function: () -> Unit) {
-
-            val container = findViewById<View>(R.id.main_activity_container)
-            if (container != null) {
-                Snackbar.make(container, text, Snackbar.LENGTH_LONG).show()
-            }
-        }
-    */
 
 }
