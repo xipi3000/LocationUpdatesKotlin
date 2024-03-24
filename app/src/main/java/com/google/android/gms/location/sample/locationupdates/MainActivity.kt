@@ -156,7 +156,7 @@ class MainActivity : ComponentActivity() {
         Manifest.permission.ACCESS_COARSE_LOCATION,
     )
 
-    fun openAppSettings(activity: Activity) {
+    private fun openAppSettings(activity: Activity) {
         val intent = Intent(
             Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
             Uri.fromParts("package", activity.packageName, null)
@@ -165,7 +165,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val locationViewModel by viewModels<LocationViewModel>()
-    fun showSnackBar(
+    private fun showSnackBar(
         snackbarHostState: SnackbarHostState,
         scope: CoroutineScope,
 
@@ -205,7 +205,7 @@ class MainActivity : ComponentActivity() {
                 )
             })
     }
-    fun requestPermissions() {
+    private fun requestPermissions() {
         val shouldProvideRationale = ActivityCompat.shouldShowRequestPermissionRationale(
             this,
             Manifest.permission.ACCESS_FINE_LOCATION
