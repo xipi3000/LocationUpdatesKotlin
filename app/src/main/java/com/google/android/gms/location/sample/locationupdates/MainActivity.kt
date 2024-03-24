@@ -138,10 +138,6 @@ class MainActivity : ComponentActivity() {
         private const val FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS =
             UPDATE_INTERVAL_IN_MILLISECONDS / 2
 
-        // Keys for storing activity state in the Bundle.
-        private const val KEY_REQUESTING_LOCATION_UPDATES = "requesting-location-updates"
-        private const val KEY_LOCATION = "location"
-        private const val KEY_LAST_UPDATED_TIME_STRING = "last-updated-time-string"
     }
 
 
