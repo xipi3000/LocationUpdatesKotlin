@@ -15,22 +15,16 @@
  */
 package com.google.android.gms.location.sample.locationupdates
 
-import androidx.compose.material3.Surface
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.content.IntentSender.SendIntentException
 import android.content.pm.PackageManager
-import android.location.Location
 import android.net.Uri
 import android.os.Bundle
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
-import android.view.View
-import android.widget.Button
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -41,22 +35,18 @@ import androidx.core.app.ActivityCompat
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.rememberScaffoldState
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 
@@ -64,30 +54,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.ReportFragment.Companion.reportFragment
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
-import com.google.android.gms.location.sample.locationupdates.databinding.MainBinding
-import com.google.android.gms.location.sample.locationupdates.ui.LocationViewModel
-import com.google.android.gms.location.sample.locationupdates.ui.theme.CameraPermissionTextProvider
-import com.google.android.gms.location.sample.locationupdates.ui.theme.PermissionDialog
-import com.google.android.gms.location.sample.locationupdates.ui.theme.RecordAudioPermissionTextProvider
-import com.google.android.gms.tasks.OnCompleteListener
-import com.google.android.gms.tasks.Task
-import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.*
-import kotlin.collections.ArrayList
 
 /**
  * Using location settings.
@@ -171,9 +149,11 @@ class MainActivity : ComponentActivity() {
      * Tracks the status of the location updates request. Value changes when the user presses the
      * Start Updates and Stop Updates buttons.
      */
-
-    private var settings = false
-
+    private lateinit var snackbarHostState :  SnackbarHostState
+    private lateinit var scope : CoroutineScope
+    private lateinit var multiplePermissionsResultLauncher: ActivityResultLauncher<Array<String>>
+    private lateinit var rationaleMessage : String
+    private lateinit var rationaleLabel: String
 
     private val permissionsToRequest = arrayOf(
         Manifest.permission.ACCESS_FINE_LOCATION,
@@ -198,7 +178,9 @@ class MainActivity : ComponentActivity() {
         action: () -> Unit,
 
         ) {
+
         scope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
             val result = snackbarHostState.showSnackbar(
                 message = message, actionLabel = actionLabel,
                 // Defaults to SnackbarDuration.Short
@@ -216,16 +198,49 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    private fun rationalSnackbar(){
+        showSnackBar(snackbarHostState = snackbarHostState,
+            scope = scope,
+            message = rationaleMessage,
+            actionLabel = rationaleLabel,
+            action = {
+                multiplePermissionsResultLauncher.launch(
+                    permissionsToRequest
+                )
+            })
+    }
+    fun requestPermissions() {
+        val shouldProvideRationale = ActivityCompat.shouldShowRequestPermissionRationale(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) || ActivityCompat.shouldShowRequestPermissionRationale(
+            this,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+        // Provide an additional rationale to the user. This would happen if the user denied the
+        // request previously, but didn't check the "Don't ask again" checkbox.
+        if (shouldProvideRationale ) {
+            Log.i(TAG, "Displaying permission rationale to provide additional context.")
+            rationalSnackbar()
+        } else {
+            Log.i(TAG, "Requesting permission")
+            // Request permission. It's possible this can be auto answered if device policy
+            // sets the permission in a given state or the user denied the permission
+            // previously and checked "Never ask again".
 
+            multiplePermissionsResultLauncher.launch(
+                permissionsToRequest)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
-            val context = LocalContext.current as ComponentActivity
-            val rationaleMessage = stringResource(id = R.string.permission_rationale)
-            val rationaleLabel = stringResource(id = android.R.string.ok)
-            val snackbarHostState = remember { SnackbarHostState() }
+            rationaleMessage = stringResource(id = R.string.permission_rationale)
+            rationaleLabel = stringResource(id = android.R.string.ok)
+            snackbarHostState = remember { SnackbarHostState() }
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
 
@@ -237,11 +252,13 @@ class MainActivity : ComponentActivity() {
                 val currentActivity = LocalContext.current as Activity
 
 
-                val scope = rememberCoroutineScope()
+                scope = rememberCoroutineScope()
 
                 val settingLabel = stringResource(id = R.string.settings)
                 val settingMessage = stringResource(R.string.permission_denied_explanation)
-                val multiplePermissionsResultLauncher =
+
+                //Deficinició del launcher per als permisos
+                multiplePermissionsResultLauncher =
                     rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestMultiplePermissions(),
                         onResult = { perms ->
                             when {
@@ -280,31 +297,18 @@ class MainActivity : ComponentActivity() {
 
                 val updating by locationViewModel.isUpdating.collectAsState()
                 val lifecycleOwner = LocalLifecycleOwner.current
-                val scaffoldState = rememberScaffoldState()
 
+                //Aqui es on administro el cicle de vida, per poder utiltizar metodes de jetpack compose
                 DisposableEffect(key1 = lifecycleOwner, effect = {
                     val observer = LifecycleEventObserver { _, event ->
                         if (event == Lifecycle.Event.ON_RESUME) {
                             Log.i(TAG, "App resumed")
-                            Log.i(TAG, permissionsGranted().toString())
-                            Log.i(TAG, updating.toString())
                             if (updating && permissionsGranted()) {
                                 startLocationUpdates()
                             } else if (permissionsGranted()) {
                                 snackbarHostState.currentSnackbarData?.dismiss()
-                            } else if (updating && !permissionsGranted() && !settings) {
-                                if (shouldShowRationaleLocation()) showSnackBar(snackbarHostState = snackbarHostState,
-                                    scope = scope,
-                                    message = rationaleMessage,
-                                    actionLabel = rationaleLabel,
-                                    action = {
-                                        multiplePermissionsResultLauncher.launch(
-                                            permissionsToRequest
-                                        )
-                                    })
-                                multiplePermissionsResultLauncher.launch(
-                                    permissionsToRequest
-                                )
+                            } else if (updating && !permissionsGranted()) {
+                                requestPermissions()
                             }
                         } else if (event == Lifecycle.Event.ON_PAUSE) {
                             Log.i(TAG, "App paused")
@@ -341,23 +345,7 @@ class MainActivity : ComponentActivity() {
 
                         Button(enabled = !updating, onClick = {
                             if (!permissionsGranted()) {
-                                if (shouldShowRationaleLocation()) {
-                                    showSnackBar(snackbarHostState = snackbarHostState,
-                                        scope = scope,
-                                        message = rationaleMessage,
-                                        actionLabel = rationaleLabel,
-                                        action = {
-                                            multiplePermissionsResultLauncher.launch(
-                                                permissionsToRequest
-                                            )
-                                        })
-                                } else {
-                                    multiplePermissionsResultLauncher.launch(
-                                        permissionsToRequest
-                                    )
-                                }
-
-
+                                requestPermissions()
                             } else {
 
                                 startLocationUpdates()
@@ -390,17 +378,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+
     }
 
 
-    private fun shouldShowRationaleLocation(): Boolean {
-        return !ActivityCompat.shouldShowRequestPermissionRationale(
-            this, Manifest.permission.ACCESS_FINE_LOCATION
-        ) || !ActivityCompat.shouldShowRequestPermissionRationale(
-            this, Manifest.permission.ACCESS_COARSE_LOCATION
-        )
 
-    }
 
     private fun createLocationRequest() {
         mLocationRequest = LocationRequest.Builder(FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS)
@@ -437,7 +420,7 @@ class MainActivity : ComponentActivity() {
         mLocationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 super.onLocationResult(locationResult)
-                Log.w("goofy", locationResult.lastLocation.toString())
+                Log.w(TAG, locationResult.lastLocation.toString())
                 locationViewModel.updateLocation(locationResult.lastLocation)
 
                 locationViewModel.updateUpdateTime(DateFormat.getTimeInstance().format(Date()))
@@ -445,6 +428,8 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+
 
     private fun buildLocationSettingsRequest() {
         val builder = LocationSettingsRequest.Builder()
@@ -465,15 +450,16 @@ class MainActivity : ComponentActivity() {
         // It is a good practice to remove location requests when the activity is in a paused or
         // stopped state. Doing so helps battery performance and is especially
         // recommended in applications that request frequent location updates.
-        val voidTask: Task<Void> = mFusedLocationClient.removeLocationUpdates(mLocationCallback)
-
+        //val voidTask: Task<Void> =
+            mFusedLocationClient.removeLocationUpdates(mLocationCallback)
+/*
         if (voidTask.isSuccessful) {
             Log.d(TAG, "StopLocation updates successful! ");
             createLocationCallback(locationViewModel)
         } else {
             Log.e(TAG, "StopLocation updates unsuccessful!")
             //stopLocationUpdates(updating)
-        }
+        }*/
         Log.i(TAG, "Location updates stoped")
         //locationViewModel.stopUpdating()
     }

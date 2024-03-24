@@ -1,4 +1,4 @@
-package com.google.android.gms.location.sample.locationupdates.ui
+package com.google.android.gms.location.sample.locationupdates
 
 import android.location.Location
 import android.provider.ContactsContract.Data
@@ -17,10 +17,12 @@ class LocationViewModel(
 ) : ViewModel(
 
 ){
+    //Si la ubicació està sent enregistrada
     val isUpdating = savedStateHandle.getStateFlow("isUpdating",false)
     private var loc = Location("")
+    //La ubicació actual
     val location : StateFlow<Location> = savedStateHandle.getStateFlow("location",loc)
-
+    //El temps en que s'ha enregistrat la ubicació
     val lastTimeUpdate  = savedStateHandle.getStateFlow("lastTimeUpdate","")
 
 
